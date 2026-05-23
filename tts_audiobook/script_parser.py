@@ -81,6 +81,7 @@ def parse_script_llm(
     characters: list[dict],
     api_key: Optional[str] = None,
     use_token_plan: bool = False,
+    llm_config: Optional[dict] = None,
 ) -> list[dict]:
     """用 LLM 将文本解析为说话人片段序列。
 
@@ -91,10 +92,11 @@ def parse_script_llm(
     Returns:
         [{speaker: str, text: str, voice: str, style: str}, ...]
     """
-    key = api_key or os.environ.get(
+    llm_cfg = llm_config or {}
+    key = llm_cfg.get("key") or api_key or os.environ.get(
         MIMO_TOKEN_PLAN_KEY_ENV if use_token_plan else MIMO_API_KEY_ENV, ""
     )
-    base_url = MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL
+    base_url = llm_cfg.get("url") or (MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL)
     client = OpenAI(api_key=key, base_url=base_url)
 
     # 构建角色描述：名字 + 别称
@@ -109,7 +111,7 @@ def parse_script_llm(
         characters=", ".join(char_parts + ["旁白"])
     )
 
-    model = "mimo-v2.5" if use_token_plan else MODEL_SCRIPT_PARSE
+    model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_SCRIPT_PARSE)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -440,6 +442,7 @@ def parse_script(
     use_llm: bool = True,
     api_key: Optional[str] = None,
     use_token_plan: bool = False,
+    llm_config: Optional[dict] = None,
 ) -> list[dict]:
     """解析脚本，返回带音色标签的片段列表。
 
@@ -461,7 +464,7 @@ def parse_script(
     # 仅当用户明确勾选「LLM 脚本解析」时才使用 LLM
     if use_llm and api_key:
         try:
-            segments, llm_usage = parse_script_llm(text, characters, api_key, use_token_plan=use_token_plan)
+            segments, llm_usage = parse_script_llm(text, characters, api_key, use_token_plan=use_token_plan, llm_config=llm_config)
         except Exception:
             pass  # LLM 失败则保持正则结果
 

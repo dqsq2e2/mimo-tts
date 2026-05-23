@@ -952,12 +952,12 @@ def _sample_text(texts, max_chars):
     third = max_chars // 3
     return full[:third] + "\n...\n" + full[len(full)//2 - third//2:len(full)//2 + third//2] + "\n...\n" + full[-third:]
 
-def _process_llm_batch(batch_texts, batch_indices, chapters, all_chars, all_segments, key, mode):
+def _process_llm_batch(batch_texts, batch_indices, chapters, all_chars, all_segments, key, mode, llm_cfg=None):
     """阶段一：角色识别（多章合并，只提取角色）。阶段二：逐章 LLM 划分。"""
     combined = "\n\n".join(batch_texts)
     total_tok = 0
     # 阶段一：角色识别（输出小巧，JSON 可靠）
-    result = detect_characters(combined, api_key=key, use_token_plan=(mode == "tokenplan"))
+    result = detect_characters(combined, api_key=key, use_token_plan=(mode == "tokenplan"), llm_config=llm_cfg)
     new_chars = result.get("characters", [])
     total_tok += result.get("_usage", {}).get("total_tokens", 0)
     for c in new_chars:
@@ -968,7 +968,7 @@ def _process_llm_batch(batch_texts, batch_indices, chapters, all_chars, all_segm
     for bi, bt in zip(batch_indices, batch_texts):
         try:
             segs, llm_u = parse_script_llm(bt, all_chars, api_key=key,
-                use_token_plan=(mode == "tokenplan"))
+                use_token_plan=(mode == "tokenplan"), llm_config=llm_cfg)
             chapters[bi]["_segments"] = segs
             chapters[bi]["_parsed_done"] = True
             all_segments.extend(segs)
@@ -1044,7 +1044,7 @@ def detect_project_chars(pid):
                 batch_texts.append(ch["text"])
                 if sum(len(t) for t in batch_texts) >= CHAR_BATCH or i == len(chapters) - 1:
                     combined = "\n\n".join(batch_texts)
-                    result = detect_characters(combined, api_key=key, use_token_plan=(mode == "tokenplan"))
+                    result = detect_characters(combined, api_key=key, use_token_plan=(mode == "tokenplan"), llm_config=llm_cfg)
                     for c in result.get("characters", []):
                         if c["name"] not in {x["name"] for x in all_chars}:
                             all_chars.append(c)
@@ -1071,7 +1071,7 @@ def detect_project_chars(pid):
                     continue
                 try:
                     segs, llm_u = parse_script_llm(ch["text"], all_chars, api_key=key,
-                        use_token_plan=(mode == "tokenplan"))
+                        use_token_plan=(mode == "tokenplan"), llm_config=llm_cfg)
                     ch["_segments"] = segs
                     total_llm += llm_u.get("total_tokens", 0)
                 except Exception as e:
@@ -1093,7 +1093,7 @@ def detect_project_chars(pid):
                 batch_texts.append(ch["text"])
                 if sum(len(t) for t in batch_texts) >= CHARS_BATCH or i == len(chapters) - 1:
                     combined = "\n\n".join(batch_texts)
-                    last_result = detect_characters(combined, api_key=key, use_token_plan=(mode == "tokenplan"))
+                    last_result = detect_characters(combined, api_key=key, use_token_plan=(mode == "tokenplan"), llm_config=llm_cfg)
                     new_chars = last_result.get("characters", [])
                     for c in new_chars:
                         if c["name"] not in {x["name"] for x in all_chars}:
@@ -1273,10 +1273,11 @@ def start_project_synth(pid):
     tid = uuid.uuid4().hex[:8]
     _tasks[tid] = {"status": "running", "current": 0, "total": 0, "tokens": 0, "cost": 0.0,
                    "duration": 0.0, "is_free": True, "log": [], "file": None, "error": None, "audio_chunks": []}
-    Thread(target=_run_synth, args=(tid, pid, text, proj, key, mode == "tokenplan", use_llm), daemon=True).start()
+    llm_cfg = d.get("llm_config", {})
+    Thread(target=_run_synth, args=(tid, pid, text, proj, key, mode == "tokenplan", use_llm, llm_cfg), daemon=True).start()
     return jsonify({"task_id": tid})
 
-def _run_synth(tid, pid, text, proj, api_key, use_token_plan, use_llm=False):
+def _run_synth(tid, pid, text, proj, api_key, use_token_plan, use_llm=False, llm_cfg=None):
     t = _tasks[tid]
     try:
         chars = proj.get("characters", [])
@@ -1300,7 +1301,7 @@ def _run_synth(tid, pid, text, proj, api_key, use_token_plan, use_llm=False):
         else:
             t["log"].append({"level": "info", "msg": "解析脚本..."})
             segs, llm_usage = parse_script(text, chars, narrator_style=ns, narrator_voice=nv,
-                               use_llm=use_llm, api_key=api_key, use_token_plan=use_token_plan)
+                               use_llm=use_llm, api_key=api_key, use_token_plan=use_token_plan, llm_config=llm_cfg)
             t["_llm_usage"] = llm_usage
         t["total"] = len(segs)
 

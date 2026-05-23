@@ -89,6 +89,7 @@ def detect_characters(
     text: str,
     api_key: Optional[str] = None,
     use_token_plan: bool = False,
+    llm_config: Optional[dict] = None,
 ) -> dict:
     """用 LLM 分析文本，识别角色并建立角色卡。
 
@@ -109,10 +110,11 @@ def detect_characters(
             ]
         }
     """
-    key = api_key or os.environ.get(
+    llm_cfg = llm_config or {}
+    key = llm_cfg.get("key") or api_key or os.environ.get(
         MIMO_TOKEN_PLAN_KEY_ENV if use_token_plan else MIMO_API_KEY_ENV, ""
     )
-    base_url = MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL
+    base_url = llm_cfg.get("url") or (MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL)
     client = OpenAI(api_key=key, base_url=base_url)
 
     # 智能采样：取开头 + 中间 + 结尾各一部分，确保覆盖全书角色
@@ -122,7 +124,7 @@ def detect_characters(
         third = CHARACTER_DETECT_MAX_CHARS // 3
         sample = text[:third] + "\n...\n" + text[len(text)//2 - third//2:len(text)//2 + third//2] + "\n...\n" + text[-third:]
 
-    model = "mimo-v2.5" if use_token_plan else MODEL_CHARACTER_DETECT
+    model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_CHARACTER_DETECT)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -367,6 +369,7 @@ def detect_and_parse(
     api_key: Optional[str] = None,
     use_token_plan: bool = False,
     existing_characters: list[dict] | None = None,
+    llm_config: Optional[dict] = None,
 ) -> dict:
     """一次 LLM 调用：识别角色 + 脚本分段。
 
@@ -381,13 +384,14 @@ def detect_and_parse(
             "_usage": {prompt_tokens, completion_tokens, total_tokens},
         }
     """
-    key = api_key or os.environ.get(
+    llm_cfg = llm_config or {}
+    key = llm_cfg.get("key") or api_key or os.environ.get(
         MIMO_TOKEN_PLAN_KEY_ENV if use_token_plan else MIMO_API_KEY_ENV, ""
     )
-    base_url = MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL
+    base_url = llm_cfg.get("url") or (MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL)
     client = OpenAI(api_key=key, base_url=base_url)
 
-    model = "mimo-v2.5" if use_token_plan else MODEL_CHARACTER_DETECT
+    model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_CHARACTER_DETECT)
 
     # 构建已知角色描述（含完整信息，LLM 可以更新）
     existing = existing_characters or []
