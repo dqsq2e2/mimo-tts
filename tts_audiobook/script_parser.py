@@ -112,7 +112,7 @@ def parse_script_llm(
     )
 
     model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_SCRIPT_PARSE)
-    response = client.chat.completions.create(
+    kwargs = dict(
         model=model,
         messages=[
             {"role": "user", "content": prompt + "\n\n文本：\n" + text}
@@ -120,8 +120,10 @@ def parse_script_llm(
         max_completion_tokens=4096,
         temperature=0.1,
         response_format={"type": "json_object"},
-        extra_body={"thinking": {"type": "disabled"}},
     )
+    if not llm_cfg:
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    response = client.chat.completions.create(**kwargs)
 
     msg = response.choices[0].message
     raw = (msg.content or "").strip()
@@ -130,11 +132,9 @@ def parse_script_llm(
     if not raw:
         raise RuntimeError("模型返回空内容")
 
-    if raw.startswith("```"):
-        lines = raw.split("\n")
-        raw = "\n".join(lines[1:]) if lines[0].startswith("```") else raw
-        if raw.endswith("```"):
-            raw = raw[:-3]
+    import re as _re
+    raw = _re.sub(r'^```(?:json|javascript|js)?\s*\n?', '', raw.strip())
+    raw = _re.sub(r'\n?```\s*$', '', raw)
     raw = raw.strip()
 
     try:

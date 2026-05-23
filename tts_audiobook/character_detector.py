@@ -125,7 +125,7 @@ def detect_characters(
         sample = text[:third] + "\n...\n" + text[len(text)//2 - third//2:len(text)//2 + third//2] + "\n...\n" + text[-third:]
 
     model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_CHARACTER_DETECT)
-    response = client.chat.completions.create(
+    kwargs = dict(
         model=model,
         messages=[
             {"role": "user", "content": CHARACTER_DETECT_PROMPT + "\n\n文本：\n" + sample}
@@ -133,8 +133,10 @@ def detect_characters(
         max_completion_tokens=2048,
         temperature=0.3,
         response_format={"type": "json_object"},
-        extra_body={"thinking": {"type": "disabled"}},
     )
+    if not llm_cfg:
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    response = client.chat.completions.create(**kwargs)
 
     msg = response.choices[0].message
     raw = (msg.content or "").strip()
@@ -146,12 +148,10 @@ def detect_characters(
     if not raw:
         raise RuntimeError("模型返回空内容，请检查 API Key 和模型是否可用")
 
-    # 清理可能的 markdown 代码块包裹
-    if raw.startswith("```"):
-        lines = raw.split("\n")
-        raw = "\n".join(lines[1:]) if lines[0].startswith("```") else raw
-        if raw.endswith("```"):
-            raw = raw[:-3]
+    # 清理可能的 markdown 代码块包裹 (```json ... ``` 或 ``` ... ```)
+    import re as _re
+    raw = _re.sub(r'^```(?:json|javascript|js)?\s*\n?', '', raw.strip())
+    raw = _re.sub(r'\n?```\s*$', '', raw)
     raw = raw.strip()
 
     try:
@@ -406,7 +406,7 @@ def detect_and_parse(
 
     prompt = COMBINED_PROMPT.replace("{existing_chars}", existing_desc)
 
-    response = client.chat.completions.create(
+    kwargs = dict(
         model=model,
         messages=[
             {"role": "user", "content": prompt + "\n\n文本：\n" + text}
@@ -414,8 +414,10 @@ def detect_and_parse(
         max_completion_tokens=16384,  # 分段 JSON 很大，需要足够输出空间
         temperature=0.3,
         response_format={"type": "json_object"},
-        extra_body={"thinking": {"type": "disabled"}},
     )
+    if not llm_cfg:
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    response = client.chat.completions.create(**kwargs)
 
     msg = response.choices[0].message
     raw = (msg.content or "").strip()
@@ -424,11 +426,8 @@ def detect_and_parse(
     if not raw:
         raise RuntimeError("模型返回空内容")
 
-    if raw.startswith("```"):
-        lines = raw.split("\n")
-        raw = "\n".join(lines[1:]) if lines[0].startswith("```") else raw
-        if raw.endswith("```"):
-            raw = raw[:-3]
+    raw = _re.sub(r'^```(?:json|javascript|js)?\s*\n?', '', raw.strip())
+    raw = _re.sub(r'\n?```\s*$', '', raw)
     raw = raw.strip()
 
     print(f"[detect-chars] Raw JSON ({len(raw)} chars): {raw[:600]}")
