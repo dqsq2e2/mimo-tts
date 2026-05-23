@@ -174,7 +174,7 @@ textarea{resize:vertical;min-height:80px}
   <h1>MiMo TTS</h1>
   <div class="row">
     <button class="btn btn-s btn-sm" onclick="showKeyPanel()">🔑 API Key</button>
-    <button class="btn btn-s btn-sm" onclick="showLLMPanel()">🤖 LLM</button>
+    <button class="btn btn-s btn-sm" id="llmBtn" onclick="showLLMPanel()" title="自定义第三方 LLM">⚙️ 自定义 LLM</button>
     <select id="apiModeSelect" onchange="switchMode(this.value)" style="width:auto;font-size:11px;padding:3px 6px">
       <option value="normal">按量付费</option><option value="tokenplan">Token Plan</option>
     </select>
@@ -182,25 +182,30 @@ textarea{resize:vertical;min-height:80px}
   </div>
 </div>
 
-<!-- LLM 配置面板 -->
+<!-- 自定义 LLM 配置面板（第三方 / 外部 LLM） -->
 <div class="card" id="llmPanel" style="display:none;border-color:#4dabf744">
-  <div class="section-header"><h2 style="margin:0">🤖 LLM 配置</h2>
+  <div class="section-header"><h2 style="margin:0">⚙️ 自定义 LLM</h2>
     <button class="btn btn-s btn-sm" onclick="document.getElementById('llmPanel').style.display='none'">✕ 关闭</button>
   </div>
-  <div class="row" style="margin-bottom:8px">
-    <div class="grow"><label>LLM API Key</label><input type="password" id="llmKey" placeholder="留空则使用 TTS Key"></div>
+  <div class="help" style="margin-bottom:8px;color:#ffa500">
+    ⚡ 默认使用 MiMo 原生 LLM（<span id="defaultModelLabel">mimo-v2-flash</span>），支持 thinking 控制、JSON 模式等特性。
+    仅当你需要使用第三方 LLM（DeepSeek / OpenAI / Qwen 等）时才需配置下方选项。
   </div>
   <div class="row" style="margin-bottom:8px">
-    <div class="grow"><label>LLM Base URL</label><input id="llmUrl" placeholder="留空则使用默认"></div>
+    <div class="grow"><label>第三方 API Key</label><input type="password" id="llmKey" placeholder="第三方 LLM 的 Key"></div>
   </div>
   <div class="row" style="margin-bottom:8px">
-    <div class="grow"><label>LLM 模型</label><input id="llmModel" placeholder="留空则自动选择"></div>
+    <div class="grow"><label>第三方 Base URL</label><input id="llmUrl" placeholder="如 https://api.deepseek.com/v1"></div>
+  </div>
+  <div class="row" style="margin-bottom:8px">
+    <div class="grow"><label>第三方 模型名</label><input id="llmModel" placeholder="如 deepseek-chat"></div>
     <button class="btn btn-s btn-sm" onclick="probeModels()">探测模型</button>
   </div>
   <div id="llmModelList" style="max-height:150px;overflow-y:auto;font-size:11px;margin-top:4px"></div>
   <div class="btn-row">
-    <button class="btn btn-p btn-sm" onclick="saveLLMConfig()">保存 LLM 配置</button>
-    <span class="help">LLM 配置独立于 TTS，仅影响角色识别和脚本划分</span>
+    <button class="btn btn-p btn-sm" onclick="saveLLMConfig()">保存自定义配置</button>
+    <button class="btn btn-s btn-sm" onclick="clearLLMConfig()" style="margin-left:6px">恢复 MiMo 默认</button>
+    <span class="help">留空全部字段并保存即可恢复 MiMo 原生 LLM</span>
   </div>
 </div>
 
@@ -394,6 +399,7 @@ let S={apiMode:localStorage.getItem('mimo_api_mode')||'normal',projects:[],pid:n
 init();
 async function init(){
   document.getElementById('apiModeSelect').value=S.apiMode;
+  updateLLMBtn();
   await checkKey();await listProjects();
 }
 
@@ -446,17 +452,33 @@ function showKeyPanel(){
 function showLLMPanel(){
   document.getElementById('llmPanel').style.display='block';
   document.getElementById('keyPanel').style.display='none';
-  // Load stored LLM config
   var cfg=JSON.parse(localStorage.getItem('mimo_llm_config')||'{}');
   document.getElementById('llmKey').value=cfg.key||'';
   document.getElementById('llmUrl').value=cfg.url||'';
   document.getElementById('llmModel').value=cfg.model||'';
+  var def=document.getElementById('apiModeSelect').value==='tokenplan'?'mimo-v2.5':'mimo-v2-flash';
+  document.getElementById('defaultModelLabel').textContent=def;
 }
 function saveLLMConfig(){
   var cfg={key:document.getElementById('llmKey').value.trim(),url:document.getElementById('llmUrl').value.trim(),model:document.getElementById('llmModel').value.trim()};
   if(!cfg.key&&!cfg.url&&!cfg.model){localStorage.removeItem('mimo_llm_config');}
   else{localStorage.setItem('mimo_llm_config',JSON.stringify(cfg));}
-  alert('LLM 配置已保存!');
+  updateLLMBtn();
+  alert('自定义 LLM 已保存!');
+}
+function clearLLMConfig(){
+  localStorage.removeItem('mimo_llm_config');
+  document.getElementById('llmKey').value='';
+  document.getElementById('llmUrl').value='';
+  document.getElementById('llmModel').value='';
+  updateLLMBtn();
+  alert('已恢复 MiMo 原生 LLM!');
+}
+function updateLLMBtn(){
+  var cfg=JSON.parse(localStorage.getItem('mimo_llm_config')||'{}');
+  var btn=document.getElementById('llmBtn');
+  if(cfg.url||cfg.key||cfg.model){btn.style.color='#ffa500';btn.title='自定义 LLM 已激活';}
+  else{btn.style.color='';btn.title='自定义第三方 LLM';}
 }
 async function probeModels(){
   var url=document.getElementById('llmUrl').value.trim()||'';
