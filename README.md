@@ -6,7 +6,7 @@
 
 第1章 陨落的天才 — 4 角色多声线配音（试听片段）
 
-<audio controls src="static/demo.mp3"></audio>
+[▶ 点击试听](https://github.com/dqsq2e2/mimo-tts/raw/master/static/demo.mp3)
 
 ## 界面预览
 
