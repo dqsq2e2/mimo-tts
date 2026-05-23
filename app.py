@@ -209,6 +209,9 @@ textarea{resize:vertical;min-height:80px}
   </div>
   <div class="row" style="margin-bottom:8px">
     <div class="grow"><label>第三方 Base URL</label><input id="llmUrl" placeholder="如 https://api.deepseek.com/v1"></div>
+    <button class="btn btn-xs" style="font-size:9px;padding:2px 5px" onclick="document.getElementById('llmUrl').value='https://api.deepseek.com/v1';document.getElementById('llmModel').value='deepseek-chat';document.getElementById('llmKey').placeholder='DeepSeek API Key'">DeepSeek</button>
+    <button class="btn btn-xs" style="font-size:9px;padding:2px 5px" onclick="document.getElementById('llmUrl').value='https://dashscope.aliyuncs.com/compatible-mode/v1';document.getElementById('llmModel').value='qwen-plus';document.getElementById('llmKey').placeholder='Qwen API Key'">Qwen</button>
+    <button class="btn btn-xs" style="font-size:9px;padding:2px 5px" onclick="document.getElementById('llmUrl').value='https://api.openai.com/v1';document.getElementById('llmModel').value='gpt-4o';document.getElementById('llmKey').placeholder='OpenAI API Key'">OpenAI</button>
   </div>
   <div class="row" style="margin-bottom:8px">
     <div class="grow"><label>第三方 模型名</label><input id="llmModel" placeholder="如 deepseek-chat"></div>
@@ -219,10 +222,10 @@ textarea{resize:vertical;min-height:80px}
     <label style="margin:0">🧠 思考模式</label>
     <select id="llmThinking" style="width:auto;font-size:11px;padding:3px 6px">
       <option value="">默认（MiMo 关 · 第三方跟随 API）</option>
-      <option value="enabled">强制开启</option>
-      <option value="disabled">强制关闭</option>
+      <option value="enabled">强制开启（DeepSeek 开启时可能返回空 JSON）</option>
+      <option value="disabled">强制关闭（推荐 JSON 输出场景）</option>
     </select>
-    <span class="help" style="margin-left:8px">开启后 LLM 会返回推理过程（含 reasoning_content），兼容 OpenAI 最新 SDK</span>
+    <span class="help" style="margin-left:8px">JSON 结构化输出建议关闭思考，否则部分模型会返回空内容</span>
   </div>
   <div class="btn-row">
     <button class="btn btn-p btn-sm" onclick="saveLLMConfig()">保存自定义配置</button>

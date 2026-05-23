@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from typing import Optional
 
 from openai import OpenAI
@@ -138,10 +139,11 @@ def detect_characters(
         temperature=0.3,
         response_format={"type": "json_object"},
     )
-    # 思考模式：第三方 LLM 可通过 thinking 字段控制，MiMo 默认关闭
+    # 思考模式：MiMo 默认关闭，第三方可通过 thinking 字段控制
     thinking = llm_cfg.get("thinking")
     if thinking == "enabled":
         kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+        kwargs["reasoning_effort"] = llm_cfg.get("reasoning_effort") or "high"
     elif thinking == "disabled":
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     elif not llm_cfg.get("url") and not llm_cfg.get("key"):
@@ -151,12 +153,18 @@ def detect_characters(
     msg = response.choices[0].message
     raw = (msg.content or "").strip()
 
-    # 如果思考模式下 content 为空，尝试 reasoning_content
+    # 如果思考模式下 content 为空，尝试从 reasoning_content 提取 JSON
     if not raw and hasattr(msg, "reasoning_content") and msg.reasoning_content:
-        raw = msg.reasoning_content.strip()
+        rc = msg.reasoning_content.strip()
+        # 尝试找 JSON 块：取最后一个 { 到最后一个 } 或 [ 到 ]
+        m = re.search(r'\{[\s\S]*\}|\[[\s\S]*\]', rc)
+        if m:
+            raw = m.group(0)
+        else:
+            raw = rc
 
     if not raw:
-        raise RuntimeError("模型返回空内容，请检查 API Key 和模型是否可用")
+        raise RuntimeError("模型返回空内容 — 如使用 DeepSeek 请关闭思考模式（JSON 输出与思考模式冲突）")
 
     # 清理可能的 markdown 代码块包裹 (```json ... ``` 或 ``` ... ```)
     import re as _re

@@ -126,6 +126,7 @@ def parse_script_llm(
     thinking = llm_cfg.get("thinking")
     if thinking == "enabled":
         kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+        kwargs["reasoning_effort"] = llm_cfg.get("reasoning_effort") or "high"
     elif thinking == "disabled":
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     elif not llm_cfg.get("url") and not llm_cfg.get("key"):
@@ -135,9 +136,14 @@ def parse_script_llm(
     msg = response.choices[0].message
     raw = (msg.content or "").strip()
     if not raw and hasattr(msg, "reasoning_content") and msg.reasoning_content:
-        raw = msg.reasoning_content.strip()
+        rc = msg.reasoning_content.strip()
+        m = re.search(r'\{[\s\S]*\}|\[[\s\S]*\]', rc)
+        if m:
+            raw = m.group(0)
+        else:
+            raw = rc
     if not raw:
-        raise RuntimeError("模型返回空内容")
+        raise RuntimeError("模型返回空内容 — 如使用 DeepSeek 请关闭思考模式（JSON 输出与思考模式冲突）")
 
     import re as _re
     raw = _re.sub(r'^```(?:json|javascript|js)?\s*\n?', '', raw.strip())
