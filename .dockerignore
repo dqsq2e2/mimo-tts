@@ -1,0 +1,40 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment & secrets
+.env
+*.key
+
+# Generated audio
+static/*.wav
+static/*.mp3
+
+# Tests
+test_*.py
+test_*.txt
+
+# Docs
+*.md
+LICENSE
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project data
+projects/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml

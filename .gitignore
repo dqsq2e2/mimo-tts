@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.env/
+*.venv
+
+# Environment & secrets
+.env
+*.key
+
+# Generated audio
+static/*.wav
+static/*.mp3
+static/*.ogg
+!static/demo.*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker Hub readme (not for repo)
+DOCKER_HUB.md
+
+# Project data
+projects/

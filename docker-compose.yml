@@ -1,0 +1,14 @@
+services:
+  mimo-tts:
+    build: .
+    container_name: mimo-tts
+    ports:
+      - "5000:5000"
+    environment:
+      - MIMO_API_KEY=${MIMO_API_KEY:-}
+      - MIMO_TOKEN_PLAN_KEY=${MIMO_TOKEN_PLAN_KEY:-}
+      - FLASK_DEBUG=${FLASK_DEBUG:-0}
+    volumes:
+      - ./projects:/app/projects
+      - ./static:/app/static
+    restart: unless-stopped
