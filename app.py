@@ -575,6 +575,7 @@ function renderSegEdit(){
   const allNames=['旁白'].concat(chars.map(c=>c.name));
   document.getElementById('segEditList').innerHTML=segs.map((s,i)=>{let opts=allNames.map(n=>'<option value="'+n.replace(/"/g,'&quot;')+'"'+(s.speaker===n?' selected':'')+'>'+n+'</option>').join('');return'<div class="char-card" style="margin-bottom:4px"><div class="row" style="width:100%"><select onchange="S_chapEdit.segments['+i+'].speaker=this.value" style="width:120px;font-size:11px">'+opts+'</select><textarea onchange="S_chapEdit.segments['+i+'].text=this.value" style="flex:1;min-height:30px;font-size:11px">'+s.text.replace(/</g,'&lt;')+'</textarea><button class="btn btn-s btn-xs" onclick="moveSeg('+i+',-1)"'+(i===0?' disabled':'')+'>▲</button><button class="btn btn-s btn-xs" onclick="moveSeg('+i+',1)"'+(i===segs.length-1?' disabled':'')+'>▼</button><button class="btn btn-d btn-xs" onclick="S_chapEdit.segments.splice('+i+',1);renderSegEdit()">x</button></div></div>'}).join('');
 }
+function moveSeg(i,dir){var segs=S_chapEdit.segments;var j=i+dir;if(j<0||j>=segs.length)return;var t=segs[i];segs[i]=segs[j];segs[j]=t;renderSegEdit()}
 function addSegRow(){S_chapEdit.segments.push({speaker:'旁白',text:''});renderSegEdit()}
 async function saveSegEdit(){
   await api('/api/projects/'+S_chapEdit.pid+'/chapters/'+S_chapEdit.idx+'/segments',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({segments:S_chapEdit.segments})});
