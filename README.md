@@ -6,10 +6,7 @@
 
 第1章 陨落的天才 — 4 角色多声线配音（试听片段）
 
-<audio controls>
-    <source src="https://raw.githubusercontent.com/dqsq2e2/mimo-tts/master/static/demo.mp3" type="audio/mpeg">
-    Your browser does not support the audio element.
-</audio>
+<video controls src="https://raw.githubusercontent.com/dqsq2e2/mimo-tts/master/static/demo.mp4"></video>
 
 ## 界面预览
 
