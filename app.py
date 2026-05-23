@@ -1374,6 +1374,10 @@ def _run_synth(tid, pid, text, proj, api_key, use_token_plan, use_llm=False, llm
                 sp = s.get("speaker", "旁白")
                 if sp in char_voice_map:
                     s["voice"] = char_voice_map[sp]
+                    s["style"] = next((c.get("speaking_style","") for c in chars if c["name"]==sp), "")
+                elif sp == "旁白":
+                    s["voice"] = nv or s.get("voice", "")
+                    s["style"] = ns or s.get("style", "")
             llm_usage = None
         else:
             t["log"].append({"level": "info", "msg": "解析脚本..."})
