@@ -180,34 +180,32 @@ def detect_chapters(text: str) -> list[dict]:
 
 
 def clean_text(text: str) -> str:
-    """清洗输入文本，去掉影响 LLM 解析的噪音字符。
+    """Clean input text before feeding to LLM.
 
-    - 去除分隔线（=== --- *** ~~~）
-    - 合并连续空行为最多两个换行
-    - 去除行首空白
-    - 统一全角符号为半角（英文引号等）
-    - 去掉孤立的 = 连接符
+    Removes decorative dividers, normalizes quotes,
+    collapses excessive newlines, and strips stray symbols.
     """
-    # 整行分隔线 → 单个换行
-    text = re.sub(r'^[\W_]{3,}\s*$', '\n', text, flags=re.MULTILINE)
-    # 行内长分隔符 → 空格
-    text = re.sub(r'[\=\-\*]{3,}', ' ', text)
-    # ⽹络⼩说常⻅的分隔符（全角/特殊）
-    text = re.sub(r'[⿻□▪▌│┃║═━◆◇★☆♠♣♥♦●○◉◎◉▽▼△▲▷▶◁◀※⁂❧❦]', ' ', text)
-    # 合并连续空行 — 最多两个换行
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    # 去行首空格
-    text = re.sub(r'^[ \t　]+', '', text, flags=re.MULTILINE)
-    # 统一弯引号为直引号（中英文混用常见问题）
-    text = text.replace(‘“’, ‘”’).replace(‘”’, ‘”’)
-    text = text.replace(‘‘’, “’”).replace(‘’’, “’”)
-    # 中文书名号内嵌的英文格式修正
-    text = text.replace(‘（’, ‘(‘).replace(‘）’, ‘)’)
-    text = text.replace(‘【’, ‘[‘).replace(‘】’, ‘]’)
-    # 去掉独立 = 号（常见于网络小说分隔）
-    text = re.sub(r’(?<!\w)=(?!\w)’, ‘’, text)
-    return text.strip()
+    import re
 
+    # whole-line dividers -> single newline
+    text = re.sub(r'^[\W_]{3,}\s*$', '\n', text, flags=re.MULTILINE)
+    # inline long dividers -> space
+    text = re.sub(r'[\=\-\*]{3,}', ' ', text)
+    # unicode box-drawing and misc symbols
+    text = re.sub(r'[■-⟿☀-➿]', ' ', text)
+    # collapse 3+ newlines to 2
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    # strip leading spaces on each line
+    text = re.sub(r'^[ \t　]+', '', text, flags=re.MULTILINE)
+    # curly quotes -> straight quotes
+    text = text.replace('“', '"').replace('”', '"')
+    text = text.replace('‘', "'").replace('’', "'")
+    # fullwidth brackets
+    text = text.replace('（', '(').replace('）', ')')
+    text = text.replace('【', '[').replace('】', ']')
+    # isolated = signs (web-novel divider residue)
+    text = re.sub(r'(?<!\w)=(?!\w)', '', text)
+    return text.strip()
 
 def load_text(source: str) -> str:
     """加载文本：支持单文件、目录（每章一个文件）。
