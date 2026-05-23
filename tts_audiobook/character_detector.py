@@ -6,6 +6,7 @@ from typing import Optional
 
 from openai import OpenAI
 
+from .text_chunker import clean_text
 from .config import (
     MIMO_BASE_URL,
     MIMO_TOKEN_PLAN_URL,
@@ -117,6 +118,9 @@ def detect_characters(
     base_url = llm_cfg.get("url") or (MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL)
     client = OpenAI(api_key=key, base_url=base_url)
 
+    # 清洗文本
+    text = clean_text(text)
+
     # 智能采样：取开头 + 中间 + 结尾各一部分，确保覆盖全书角色
     if len(text) <= CHARACTER_DETECT_MAX_CHARS:
         sample = text
@@ -134,7 +138,13 @@ def detect_characters(
         temperature=0.3,
         response_format={"type": "json_object"},
     )
-    if not llm_cfg.get("url") and not llm_cfg.get("key"):
+    # 思考模式：第三方 LLM 可通过 thinking 字段控制，MiMo 默认关闭
+    thinking = llm_cfg.get("thinking")
+    if thinking == "enabled":
+        kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+    elif thinking == "disabled":
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    elif not llm_cfg.get("url") and not llm_cfg.get("key"):
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     response = client.chat.completions.create(**kwargs)
 
@@ -404,6 +414,7 @@ def detect_and_parse(
     else:
         existing_desc = "暂无（第一章，所有角色都是新角色）"
 
+    text = clean_text(text)
     prompt = COMBINED_PROMPT.replace("{existing_chars}", existing_desc)
 
     kwargs = dict(
@@ -415,7 +426,12 @@ def detect_and_parse(
         temperature=0.3,
         response_format={"type": "json_object"},
     )
-    if not llm_cfg.get("url") and not llm_cfg.get("key"):
+    thinking = llm_cfg.get("thinking")
+    if thinking == "enabled":
+        kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+    elif thinking == "disabled":
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    elif not llm_cfg.get("url") and not llm_cfg.get("key"):
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     response = client.chat.completions.create(**kwargs)
 

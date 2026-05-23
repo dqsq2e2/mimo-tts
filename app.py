@@ -215,6 +215,15 @@ textarea{resize:vertical;min-height:80px}
     <button class="btn btn-s btn-sm" onclick="probeModels()">探测模型</button>
   </div>
   <div id="llmModelList" style="max-height:150px;overflow-y:auto;font-size:11px;margin-top:4px"></div>
+  <div class="row" style="margin-bottom:8px;align-items:center">
+    <label style="margin:0">🧠 思考模式</label>
+    <select id="llmThinking" style="width:auto;font-size:11px;padding:3px 6px">
+      <option value="">默认（MiMo 关 · 第三方跟随 API）</option>
+      <option value="enabled">强制开启</option>
+      <option value="disabled">强制关闭</option>
+    </select>
+    <span class="help" style="margin-left:8px">开启后 LLM 会返回推理过程（含 reasoning_content），兼容 OpenAI 最新 SDK</span>
+  </div>
   <div class="btn-row">
     <button class="btn btn-p btn-sm" onclick="saveLLMConfig()">保存自定义配置</button>
     <button class="btn btn-s btn-sm" onclick="clearLLMConfig()" style="margin-left:6px">恢复 MiMo 默认</button>
@@ -482,13 +491,14 @@ function showLLMPanel(){
   document.getElementById('llmKey').value=cfg.key||'';
   document.getElementById('llmUrl').value=cfg.url||'';
   document.getElementById('llmModel').value=cfg.model||'';
+  document.getElementById('llmThinking').value=cfg.thinking||'';
   var pref=localStorage.getItem('mimo_model_preference')||'';
   var def=pref||(document.getElementById('apiModeSelect').value==='tokenplan'?'mimo-v2.5':'mimo-v2-flash');
   document.getElementById('defaultModelLabel').textContent=def;
 }
 function saveLLMConfig(){
-  var cfg={key:document.getElementById('llmKey').value.trim(),url:document.getElementById('llmUrl').value.trim(),model:document.getElementById('llmModel').value.trim()};
-  if(!cfg.key&&!cfg.url&&!cfg.model){localStorage.removeItem('mimo_llm_config');}
+  var cfg={key:document.getElementById('llmKey').value.trim(),url:document.getElementById('llmUrl').value.trim(),model:document.getElementById('llmModel').value.trim(),thinking:document.getElementById('llmThinking').value};
+  if(!cfg.key&&!cfg.url&&!cfg.model&&!cfg.thinking){localStorage.removeItem('mimo_llm_config');}
   else{localStorage.setItem('mimo_llm_config',JSON.stringify(cfg));}
   updateLLMBtn();
   alert('自定义 LLM 已保存!');
@@ -498,6 +508,7 @@ function clearLLMConfig(){
   document.getElementById('llmKey').value='';
   document.getElementById('llmUrl').value='';
   document.getElementById('llmModel').value='';
+  document.getElementById('llmThinking').value='';
   updateLLMBtn();
   alert('已恢复 MiMo 原生 LLM!');
 }

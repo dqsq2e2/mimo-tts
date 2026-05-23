@@ -12,6 +12,7 @@ from typing import Optional
 
 from openai import OpenAI
 
+from .text_chunker import clean_text
 from .config import (
     MIMO_BASE_URL,
     MIMO_TOKEN_PLAN_URL,
@@ -111,6 +112,7 @@ def parse_script_llm(
         characters=", ".join(char_parts + ["旁白"])
     )
 
+    text = clean_text(text)
     model = llm_cfg.get("model") or (LLM_TOKENPLAN_SCRIPT if use_token_plan else LLM_NORMAL_SCRIPT)
     kwargs = dict(
         model=model,
@@ -121,7 +123,12 @@ def parse_script_llm(
         temperature=0.1,
         response_format={"type": "json_object"},
     )
-    if not llm_cfg.get("url") and not llm_cfg.get("key"):
+    thinking = llm_cfg.get("thinking")
+    if thinking == "enabled":
+        kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+    elif thinking == "disabled":
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    elif not llm_cfg.get("url") and not llm_cfg.get("key"):
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     response = client.chat.completions.create(**kwargs)
 
@@ -200,6 +207,9 @@ def parse_script_llm(
                 guessed = _guess_voice_from_name(name)
                 seg["voice"] = guessed or ""
                 seg["style"] = ""
+
+    # 过滤 LLM 产生的空白/噪音分段
+    segments = [s for s in segments if s.get("text", "").strip()]
 
     llm_usage = {
         "prompt_tokens": response.usage.prompt_tokens,
