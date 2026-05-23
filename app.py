@@ -169,6 +169,11 @@ textarea{resize:vertical;min-height:80px}
 .tab{padding:6px 14px;cursor:pointer;font-size:12px;color:#888;border-bottom:2px solid transparent}
 .tab.active{color:#ffa500;border-bottom-color:#ffa500}
 .help{font-size:10px;color:#555;margin-top:3px}
+.seg-row{display:flex;align-items:center;gap:4px;margin-bottom:4px;padding:4px;border-radius:6px;border:1px solid transparent;transition:border-color .15s}
+.seg-row.dragging{opacity:.35}
+.seg-row.drag-over{border-color:#ffa500;background:#ffa50010}
+.drag-handle{cursor:grab;color:#555;font-size:14px;user-select:none;padding:0 2px}
+.drag-handle:active{cursor:grabbing}
 </style></head><body>
 <div class="header">
   <h1>MiMo TTS</h1>
@@ -569,13 +574,26 @@ async function openChapEdit(idx){
   document.getElementById('chapEditTitle').textContent=d.title||'章节分段';
   renderSegEdit();showPage('page-chap-edit');
 }
+var S_drag={idx:-1};  // 拖拽状态
 function renderSegEdit(){
   const segs=S_chapEdit.segments;
   const chars=S.proj.characters||[];
   const allNames=['旁白'].concat(chars.map(c=>c.name));
-  document.getElementById('segEditList').innerHTML=segs.map((s,i)=>{let opts=allNames.map(n=>'<option value="'+n.replace(/"/g,'&quot;')+'"'+(s.speaker===n?' selected':'')+'>'+n+'</option>').join('');return'<div class="char-card" style="margin-bottom:4px"><div class="row" style="width:100%"><select onchange="S_chapEdit.segments['+i+'].speaker=this.value" style="width:120px;font-size:11px">'+opts+'</select><textarea onchange="S_chapEdit.segments['+i+'].text=this.value" style="flex:1;min-height:30px;font-size:11px">'+s.text.replace(/</g,'&lt;')+'</textarea><button class="btn btn-s btn-xs" onclick="moveSeg('+i+',-1)"'+(i===0?' disabled':'')+'>▲</button><button class="btn btn-s btn-xs" onclick="moveSeg('+i+',1)"'+(i===segs.length-1?' disabled':'')+'>▼</button><button class="btn btn-d btn-xs" onclick="S_chapEdit.segments.splice('+i+',1);renderSegEdit()">x</button></div></div>'}).join('');
+  document.getElementById('segEditList').innerHTML=segs.map((s,i)=>{
+    let opts=allNames.map(n=>'<option value="'+n.replace(/"/g,'&quot;')+'"'+(s.speaker===n?' selected':'')+'>'+n+'</option>').join('');
+    return'<div class="seg-row" draggable="true" data-idx="'+i+'" ondragstart="dragSegStart(event,'+i+')" ondragover="dragSegOver(event)" ondragleave="dragSegLeave(event)" ondrop="dragSegDrop(event,'+i+')" ondragend="dragSegEnd(event)">'+
+      '<span class="drag-handle" title="拖动排序">⋮⋮</span>'+
+      '<select onchange="S_chapEdit.segments['+i+'].speaker=this.value" style="width:120px;font-size:11px">'+opts+'</select>'+
+      '<textarea onchange="S_chapEdit.segments['+i+'].text=this.value" style="flex:1;min-height:30px;font-size:11px">'+s.text.replace(/</g,'&lt;')+'</textarea>'+
+      '<button class="btn btn-d btn-xs" onclick="S_chapEdit.segments.splice('+i+',1);renderSegEdit()">x</button>'+
+      '</div>';
+  }).join('');
 }
-function moveSeg(i,dir){var segs=S_chapEdit.segments;var j=i+dir;if(j<0||j>=segs.length)return;var t=segs[i];segs[i]=segs[j];segs[j]=t;renderSegEdit()}
+function dragSegStart(e,i){S_drag.idx=i;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','')}
+function dragSegOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over')}
+function dragSegLeave(e){e.currentTarget.classList.remove('drag-over')}
+function dragSegEnd(e){e.currentTarget.classList.remove('dragging');document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'))}
+function dragSegDrop(e,i){e.preventDefault();var from=S_drag.idx;if(from===i)return;var segs=S_chapEdit.segments;var item=segs.splice(from,1)[0];segs.splice(from<i?i-1:i,0,item);renderSegEdit()}
 function addSegRow(){S_chapEdit.segments.push({speaker:'旁白',text:''});renderSegEdit()}
 async function saveSegEdit(){
   await api('/api/projects/'+S_chapEdit.pid+'/chapters/'+S_chapEdit.idx+'/segments',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({segments:S_chapEdit.segments})});
