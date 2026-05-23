@@ -178,6 +178,14 @@ textarea{resize:vertical;min-height:80px}
     <select id="apiModeSelect" onchange="switchMode(this.value)" style="width:auto;font-size:11px;padding:3px 6px">
       <option value="normal">按量付费</option><option value="tokenplan">Token Plan</option>
     </select>
+    <select id="mimoModelSelect" onchange="switchMimoModel(this.value)" style="width:auto;font-size:11px;padding:3px 6px;color:#ffa500" title="选择 MiMo LLM 模型">
+      <option value="">MiMo 默认</option>
+      <option value="mimo-v2-flash">mimo-v2-flash</option>
+      <option value="mimo-v2.5">mimo-v2.5</option>
+      <option value="mimo-v2.5-pro">mimo-v2.5-pro</option>
+      <option value="mimo-v2-pro">mimo-v2-pro</option>
+      <option value="mimo-v2-omni">mimo-v2-omni</option>
+    </select>
     <span class="badge" id="keyBadge">查 Key</span>
   </div>
 </div>
@@ -399,6 +407,8 @@ let S={apiMode:localStorage.getItem('mimo_api_mode')||'normal',projects:[],pid:n
 init();
 async function init(){
   document.getElementById('apiModeSelect').value=S.apiMode;
+  var modelPref=localStorage.getItem('mimo_model_preference')||'';
+  document.getElementById('mimoModelSelect').value=modelPref;
   updateLLMBtn();
   await checkKey();await listProjects();
 }
@@ -444,6 +454,17 @@ function switchMode(m){
     }
   });
 }
+function switchMimoModel(m){
+  localStorage.setItem('mimo_model_preference', m||'');
+  document.getElementById('mimoModelSelect').value=m||'';
+}
+// 合并自定义 LLM 配置 + MiMo 模型偏好
+function getLLMConfig(){
+  var cfg=JSON.parse(localStorage.getItem('mimo_llm_config')||'{}');
+  var modelPref=localStorage.getItem('mimo_model_preference')||'';
+  if(modelPref && !cfg.model){cfg.model=modelPref;}
+  return cfg;
+}
 function showKeyPanel(){
   document.getElementById('keyPanel').style.display='block';
   document.getElementById('llmPanel').style.display='none';
@@ -456,7 +477,8 @@ function showLLMPanel(){
   document.getElementById('llmKey').value=cfg.key||'';
   document.getElementById('llmUrl').value=cfg.url||'';
   document.getElementById('llmModel').value=cfg.model||'';
-  var def=document.getElementById('apiModeSelect').value==='tokenplan'?'mimo-v2.5':'mimo-v2-flash';
+  var pref=localStorage.getItem('mimo_model_preference')||'';
+  var def=pref||(document.getElementById('apiModeSelect').value==='tokenplan'?'mimo-v2.5':'mimo-v2-flash');
   document.getElementById('defaultModelLabel').textContent=def;
 }
 function saveLLMConfig(){
@@ -738,7 +760,7 @@ async function detectChars(){
   if(!text){alert('请先添加章节');return}
   const btn=document.getElementById('btnDetect');btn.disabled=true;btn.textContent='分析中...';
   try{
-    const d=await api('/api/projects/'+S.pid+'/detect-chars',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:S.apiMode,text,with_parse:S.detectWithParse,force:S.forceRedetect,llm_config:JSON.parse(localStorage.getItem('mimo_llm_config')||'{}')})});
+    const d=await api('/api/projects/'+S.pid+'/detect-chars',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:S.apiMode,text,with_parse:S.detectWithParse,force:S.forceRedetect,llm_config:getLLMConfig()})});
     if(d.error){alert(d.error);return}
     // 合并已有角色的 history
     const oldChars=S.proj.characters||[];
@@ -760,7 +782,7 @@ async function startSynth(){
   if(!await checkKey()){alert('请先配置 API Key！\\n\\n即将跳转到小米 MiMo 开放平台注册页面。');window.open('https://platform.xiaomimimo.com?ref=V25WQB','_blank');return}
   document.getElementById('synthReady').style.display='none';document.getElementById('synthProgress').style.display='block';
   document.getElementById('pFill').style.width='0%';document.getElementById('logBox').innerHTML='';
-  const d=await api('/api/projects/'+S.pid+'/synthesize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:S.apiMode,use_llm:S.useLLMParse,llm_config:JSON.parse(localStorage.getItem('mimo_llm_config')||'{}')})});
+  const d=await api('/api/projects/'+S.pid+'/synthesize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:S.apiMode,use_llm:S.useLLMParse,llm_config:getLLMConfig()})});
   if(d.error){alert(d.error);return}
   S.taskId=d.task_id;pollProgress();
 }

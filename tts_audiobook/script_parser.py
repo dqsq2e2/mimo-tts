@@ -121,7 +121,7 @@ def parse_script_llm(
         temperature=0.1,
         response_format={"type": "json_object"},
     )
-    if not llm_cfg:
+    if not llm_cfg.get("url") and not llm_cfg.get("key"):
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     response = client.chat.completions.create(**kwargs)
 
