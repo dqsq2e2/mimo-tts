@@ -17,7 +17,7 @@ from .config import (
     MIMO_TOKEN_PLAN_URL,
     MIMO_API_KEY_ENV,
     MIMO_TOKEN_PLAN_KEY_ENV,
-    MODEL_SCRIPT_PARSE,
+    LLM_NORMAL_SCRIPT, LLM_TOKENPLAN_SCRIPT,
 )
 
 SCRIPT_PARSE_PROMPT = """你是中文有声书朗读导演。将文本逐字拆分为朗读片段，标注每个片段属于哪个角色或旁白。
@@ -111,7 +111,7 @@ def parse_script_llm(
         characters=", ".join(char_parts + ["旁白"])
     )
 
-    model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_SCRIPT_PARSE)
+    model = llm_cfg.get("model") or (LLM_TOKENPLAN_SCRIPT if use_token_plan else LLM_NORMAL_SCRIPT)
     kwargs = dict(
         model=model,
         messages=[

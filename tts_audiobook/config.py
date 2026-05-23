@@ -6,10 +6,19 @@ MIMO_TOKEN_PLAN_URL = "https://token-plan-cn.xiaomimimo.com/v1"
 MIMO_API_KEY_ENV = "MIMO_API_KEY"
 MIMO_TOKEN_PLAN_KEY_ENV = "MIMO_TOKEN_PLAN_KEY"
 
-# TTS 模型
+# ── TTS 模型 ──
 MODEL_TTS = "mimo-v2.5-tts"
 MODEL_VOICE_DESIGN = "mimo-v2.5-tts-voicedesign"
 MODEL_VOICE_CLONE = "mimo-v2.5-tts-voiceclone"
+
+# ── LLM 模型 ──
+# 按量付费 API (api.xiaomimimo.com)
+LLM_NORMAL_CHARACTER = "mimo-v2-flash"     # 角色识别：便宜够用
+LLM_NORMAL_SCRIPT = "mimo-v2-flash"        # 脚本解析：便宜够用
+
+# Token Plan API (token-plan-cn.xiaomimimo.com)
+LLM_TOKENPLAN_CHARACTER = "mimo-v2.5"      # 角色识别
+LLM_TOKENPLAN_SCRIPT = "mimo-v2.5"         # 脚本解析
 
 # 音频参数
 AUDIO_SAMPLE_RATE = 24000
@@ -31,9 +40,9 @@ MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2.0                   # 指数退避基数（秒）
 REQUEST_TIMEOUT = 120                      # 单次请求超时（秒）
 
-# 角色检测模型（用最便宜的模型做文本分析）
-MODEL_CHARACTER_DETECT = "mimo-v2-flash"
-MODEL_SCRIPT_PARSE = "mimo-v2-flash"
+# 角色检测模型（用最便宜的模型做文本分析）—— 保留兼容别名
+MODEL_CHARACTER_DETECT = LLM_NORMAL_CHARACTER
+MODEL_SCRIPT_PARSE = LLM_NORMAL_SCRIPT
 
 # 角色检测 LLM 每次最多分析的文本长度
 CHARACTER_DETECT_MAX_CHARS = 120000  # mimo-v2-flash 上下文 256K，120K 字 ≈ 180K tokens，安全

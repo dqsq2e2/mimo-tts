@@ -11,7 +11,7 @@ from .config import (
     MIMO_TOKEN_PLAN_URL,
     MIMO_API_KEY_ENV,
     MIMO_TOKEN_PLAN_KEY_ENV,
-    MODEL_CHARACTER_DETECT,
+    LLM_NORMAL_CHARACTER, LLM_TOKENPLAN_CHARACTER,
     CHARACTER_DETECT_MAX_CHARS,
     VOICE_ASSIGN_RULES,
     NARRATOR_VOICE,
@@ -124,7 +124,7 @@ def detect_characters(
         third = CHARACTER_DETECT_MAX_CHARS // 3
         sample = text[:third] + "\n...\n" + text[len(text)//2 - third//2:len(text)//2 + third//2] + "\n...\n" + text[-third:]
 
-    model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_CHARACTER_DETECT)
+    model = llm_cfg.get("model") or (LLM_TOKENPLAN_CHARACTER if use_token_plan else LLM_NORMAL_CHARACTER)
     kwargs = dict(
         model=model,
         messages=[
@@ -391,7 +391,7 @@ def detect_and_parse(
     base_url = llm_cfg.get("url") or (MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL)
     client = OpenAI(api_key=key, base_url=base_url)
 
-    model = llm_cfg.get("model") or ("mimo-v2.5" if use_token_plan else MODEL_CHARACTER_DETECT)
+    model = llm_cfg.get("model") or (LLM_TOKENPLAN_CHARACTER if use_token_plan else LLM_NORMAL_CHARACTER)
 
     # 构建已知角色描述（含完整信息，LLM 可以更新）
     existing = existing_characters or []
