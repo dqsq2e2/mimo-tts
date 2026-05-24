@@ -19,7 +19,16 @@ venv/
 static/*.wav
 static/*.mp3
 static/*.ogg
+static/**/*.wav
+static/**/*.mp3
+static/**/*.ogg
+static/**/*.png
 !static/demo.*
+
+# Tests & local scratch
+test_*.py
+test_*.txt
+patch*.py
 
 # IDE
 .vscode/
@@ -34,3 +43,6 @@ DOCKER_HUB.md
 
 # Project data
 projects/
+.runtime/
+frontend/node_modules/
+frontend/dist/

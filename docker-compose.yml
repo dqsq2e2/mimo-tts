@@ -5,10 +5,19 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5000
       - MIMO_API_KEY=${MIMO_API_KEY:-}
       - MIMO_TOKEN_PLAN_KEY=${MIMO_TOKEN_PLAN_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - LLM_THINKING=${LLM_THINKING:-}
+      - LLM_REASONING_EFFORT=${LLM_REASONING_EFFORT:-}
       - FLASK_DEBUG=${FLASK_DEBUG:-0}
     volumes:
+      - ./.runtime:/app/.runtime
       - ./projects:/app/projects
       - ./static:/app/static
     restart: unless-stopped

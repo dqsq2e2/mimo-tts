@@ -11,6 +11,8 @@ on:
       - '.dockerignore'
       - 'docker-compose.yml'
       - 'tts_audiobook/**'
+      - 'frontend/**'
+      - 'voices/**'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 

@@ -9,15 +9,20 @@ __pycache__/
 
 # Environment & secrets
 .env
+.runtime/
 *.key
 
 # Generated audio
-static/*.wav
-static/*.mp3
+static/**/*.wav
+static/**/*.mp3
+static/**/*.ogg
+static/**/*.png
+!static/demo.*
 
 # Tests
 test_*.py
 test_*.txt
+patch*.py
 
 # Docs
 *.md
@@ -33,6 +38,10 @@ Thumbs.db
 
 # Project data
 projects/
+
+# Frontend (built in multi-stage)
+frontend/node_modules/
+frontend/dist/
 
 # Docker
 Dockerfile

@@ -18,13 +18,18 @@ from .config import (
     VOICE_ASSIGN_RULES,
     NARRATOR_VOICE,
 )
+from .voice_catalog import compact_voice_catalog, preset_voice_catalog, recommend_voice_id
 
-CHARACTER_DETECT_PROMPT = """你是中文有声书导演。分析文本，识别所有角色并建立角色卡。同时为每个角色识别别称。
+CHARACTER_DETECT_PROMPT = """你是中文有声书导演。分析文本，识别所有角色并建立角色卡。为每个角色识别别称，并从音色库中挑选最匹配的克隆音色。
+
+【可选音色库】
+{voice_catalog}
 
 返回 JSON（只返回 JSON，文本中的双引号用反斜线转义）：
 
 {
   "narrator_style": "旁白朗读风格（如：沉稳大气的男声，武侠叙事感，语速适中）",
+  "narrator_builtin_voice_id": "旁白音色ID（从音色库中选）",
   "characters": [
     {
       "name": "角色名（正式称呼）",
@@ -33,7 +38,8 @@ CHARACTER_DETECT_PROMPT = """你是中文有声书导演。分析文本，识别
       "age": "青年",
       "personality": "性格关键词（如：深沉稳重、活泼调皮、表面冷漠内心炽热）",
       "role": "主角/反派/配角",
-      "speaking_style": "朗读风格（如：语速缓慢声音低沉有磁性、语速快声音尖细带鼻音）"
+      "speaking_style": "朗读风格（如：语速缓慢声音低沉有磁性、语速快声音尖细带鼻音）",
+      "builtin_voice_id": "音色ID（从音色库中选）"
     }
   ]
 }
@@ -45,6 +51,12 @@ CHARACTER_DETECT_PROMPT = """你是中文有声书导演。分析文本，识别
 - speaking_style 描述声音特征用于 TTS，不是性格描述
 - narrator_style 需匹配全书基调（如武侠→大气沉稳、言情→温柔细腻）
 
+【音色选择 — 按优先级】
+1. 性别必须一致（男角选男声、女角选女声）
+2. 年龄匹配（儿童→童声、少年→少年音、老年→老年音）
+3. 风格贴近角色的 speaking_style 和 personality
+4. 旁白根据 narrator_style 选（沉稳大气→男声纪录旁白/文学旁白、温柔细腻→磁性女声旁白）
+
 【角色识别 — 按优先级】
 
 1. 对话中自报姓名 → 最可靠
@@ -52,8 +64,8 @@ CHARACTER_DETECT_PROMPT = """你是中文有声书导演。分析文本，识别
    "老夫包不同" → name=包不同
 
 2. 叙述中直接命名 + 对话标记 → 可靠
-   "萧炎苦涩的道："……"" → name=萧炎
-   "薰儿轻声道："……"" → name=萧薰儿（别称：薰儿）
+   "萧炎苦涩的道：""……"" → name=萧炎
+   "薰儿轻声道：""……"" → name=萧薰儿（别称：薰儿）
 
 3. 称谓/身份 + 对话 → 建立临时名，别称列表要全
    "中年男子看了一眼碑上的信息，语气漠然的将之公布了出来" → name=中年测验员
@@ -76,15 +88,78 @@ CHARACTER_DETECT_PROMPT = """你是中文有声书导演。分析文本，识别
 
 【示例】
 角色 萧薰儿：文中称"薰儿""薰儿小姐""少女""萧薰儿"
-→ "name":"萧薰儿","aliases":["萧薰儿","薰儿","薰儿小姐","少女"]
+→ "name":"萧薰儿","aliases":["萧薰儿","薰儿","薰儿小姐","少女"],"builtin_voice_id":"female_sweet_girl"
 
 角色 老者（神医）：文中称"神医""老者""薛神医"
-→ "name":"老者（神医）","aliases":["老者（神医）","神医","老者","薛神医"]
+→ "name":"老者（神医）","aliases":["老者（神医）","神医","老者","薛神医"],"builtin_voice_id":"male_deep_elder"
 
 错误示例：
 → 把路人"围观群众"建了角色卡 ← 路人不需要
 → "name":"少女"但没有 aliases ← 缺少别称
 """
+
+CHARACTER_DETECT_CONTINUE_PROMPT = """你是中文有声书导演。下面是之前章节已识别的角色卡：
+
+【已有角色】
+{existing_chars}
+
+【可选音色库（新角色需要从中选音色）】
+{voice_catalog}
+
+现在分析新章节文本。你的任务是：
+1. 丰富已有角色：新章节中可能揭示了已有角色的新别称、性格变化、身份揭露。特别关注：
+   - 年龄增长（如"三年后"→ 少年→青年，需同步更新 age 和 builtin_voice_id）
+   - 性格转变（如黑化、成长、堕落，需同步更新 personality 和 speaking_style）
+   - 身份变化（如弟子→掌门，需同步更新 role 和 speaking_style）
+2. 识别新角色：只建立之前未出现过的角色，新角色必须从音色库中选择 builtin_voice_id
+
+返回 JSON（只返回 JSON）：
+
+{
+  "narrator_style": "如果旁白基调随剧情变化需更新则填，否则留空",
+  "narrator_builtin_voice_id": "如果旁白音色需要调整则填新ID，否则留空",
+  "new_characters": [
+    {
+      "name": "新角色名（不得与已有角色重复）",
+      "aliases": ["别称1", "别称2"],
+      "gender": "男",
+      "age": "青年",
+      "personality": "性格关键词",
+      "role": "主角/反派/配角",
+      "speaking_style": "朗读风格",
+      "builtin_voice_id": "音色ID（必填，从音色库中选）"
+    }
+  ],
+  "updated_characters": [
+    {
+      "name": "已有角色名（必须和已有角色列表中的 name 完全一致）",
+      "aliases": ["新别称1"],
+      "gender": "男",
+      "age": "更新后的年龄段（如因时间跨度增长必更新）",
+      "personality": "更新后的性格（如无变化可省略）",
+      "role": "更新后的角色类型（如无变化可省略）",
+      "speaking_style": "更新后的朗读风格（如年龄/性格变化导致应更新）",
+      "builtin_voice_id": "如果年龄或角色定位变化导致音色需调整则填新ID，否则留空"
+    }
+  ]
+}
+
+【角色成长追踪 — 重要！】
+- 如果文中出现明显时间跨度（"三年后""十年后""数月后"等），检查已有角色的年龄是否应增长
+- 年龄增长后必须重新评估 builtin_voice_id（如少年→青年应改用青年音色）
+- 角色性格发生重大转变（黑化、觉悟、疯癫）时需更新 personality 和 speaking_style
+
+【音色选择优先级】
+1. 性别必须一致（男角选男声、女角选女声）
+2. 年龄匹配（儿童→童声、少年→少年音、老年→老年音）
+3. 风格贴近角色的 speaking_style 和 personality
+
+【铁律】
+- 已有角色不要重复建到 new_characters 中
+- updated_characters 只填有变化的字段，重点是补充新发现的别称到 aliases
+- 新角色的 builtin_voice_id 必填，已有角色只在年龄/定位变化时更新
+- 路人/围观者不建新角色卡
+- 返回纯 JSON"""
 
 
 def detect_characters(
@@ -92,25 +167,13 @@ def detect_characters(
     api_key: Optional[str] = None,
     use_token_plan: bool = False,
     llm_config: Optional[dict] = None,
+    existing_characters: list[dict] | None = None,
+    use_clone_library: bool = True,
 ) -> dict:
     """用 LLM 分析文本，识别角色并建立角色卡。
 
-    Returns:
-        {
-            "narrator_style": str,
-            "characters": [
-                {
-                    "name": str,
-                    "gender": str,
-                    "age": str,
-                    "personality": str,
-                    "role": str,
-                    "speaking_style": str,
-                    "assigned_voice": str,     # 自动分配的音色 ID
-                    "line_count_estimate": int,
-                }
-            ]
-        }
+    支持多阶段：传入 existing_characters 时，LLM 只返回新角色和更新的已有角色，
+    避免重复建卡，同时丰富已有角色的别称和画像。
     """
     llm_cfg = llm_config or {}
     key = llm_cfg.get("key") or api_key or os.environ.get(
@@ -119,10 +182,24 @@ def detect_characters(
     base_url = llm_cfg.get("url") or (MIMO_TOKEN_PLAN_URL if use_token_plan else MIMO_BASE_URL)
     client = OpenAI(api_key=key, base_url=base_url)
 
-    # 清洗文本
     text = clean_text(text)
 
-    # 智能采样：取开头 + 中间 + 结尾各一部分，确保覆盖全书角色
+    catalog = compact_voice_catalog() if use_clone_library else preset_voice_catalog()
+    voice_catalog_json = json.dumps(catalog, ensure_ascii=False)
+    existing = existing_characters or []
+    if existing:
+        parts = []
+        for c in existing:
+            vid = c.get("builtin_voice_id", "")
+            parts.append(
+                f'{c["name"]}（{c.get("gender","?")}·{c.get("age","?")}·{c.get("personality","?")}·'
+                f'{c.get("role","?")}·克隆音色:{vid or "未分配"}·'
+                f'别称:{",".join(c.get("aliases",[c["name"]]))}）')
+        existing_desc = "\n".join(parts)
+        prompt = CHARACTER_DETECT_CONTINUE_PROMPT.replace("{existing_chars}", existing_desc).replace("{voice_catalog}", voice_catalog_json)
+    else:
+        prompt = CHARACTER_DETECT_PROMPT.replace("{voice_catalog}", voice_catalog_json)
+
     if len(text) <= CHARACTER_DETECT_MAX_CHARS:
         sample = text
     else:
@@ -133,9 +210,9 @@ def detect_characters(
     kwargs = dict(
         model=model,
         messages=[
-            {"role": "user", "content": CHARACTER_DETECT_PROMPT + "\n\n文本：\n" + sample}
+            {"role": "user", "content": prompt + "\n\n文本：\n" + sample}
         ],
-        max_completion_tokens=2048,
+        max_completion_tokens=4096,
         temperature=0.3,
         response_format={"type": "json_object"},
     )
@@ -182,14 +259,38 @@ def detect_characters(
         result = json.loads(raw)
 
     # 校验并修正角色卡
-    characters = _validate_and_fix_characters(result.get("characters", []), sample)
-    # 自动派生别称（如 "慕容富/慕容复" → ["慕容富", "慕容复"]）
-    for c in characters:
-        c["aliases"] = _derive_aliases(c.get("name", ""))
+    if existing:
+        new_chars = _validate_and_fix_characters(result.get("new_characters", []), sample)
+        for c in new_chars:
+            c["aliases"] = _derive_aliases(c.get("name", ""))
+        updated_chars = result.get("updated_characters", [])
+        # 合并：应用更新到已有角色 → 加入新角色
+        all_chars = {c["name"]: dict(c) for c in existing}
+        for uc in updated_chars:
+            name = uc.get("name", "")
+            if name in all_chars:
+                for key in ["aliases", "gender", "age", "personality", "role", "speaking_style", "builtin_voice_id"]:
+                    if uc.get(key):
+                        if key == "aliases":
+                            merged = set(all_chars[name].get("aliases", [])) | set(uc.get("aliases", []))
+                            all_chars[name]["aliases"] = list(merged)
+                        else:
+                            all_chars[name][key] = uc[key]
+        for c in new_chars:
+            if c["name"] not in all_chars:
+                all_chars[c["name"]] = c
+        characters = list(all_chars.values())
+    else:
+        characters = _validate_and_fix_characters(result.get("characters", []), sample)
+        for c in characters:
+            c["aliases"] = _derive_aliases(c.get("name", ""))
     result["characters"] = characters
 
+    if not result.get("narrator_style") and existing:
+        result["narrator_style"] = ""
+
     # 自动分配音色
-    _assign_voices(result)
+    _assign_voices(result, use_clone_library)
 
     # 记录 token 用量
     result["_usage"] = {
@@ -276,24 +377,34 @@ def _validate_and_fix_characters(characters: list[dict], text_sample: str = "") 
     return characters
 
 
-def _assign_voices(result: dict):
-    """根据性别和年龄自动分配 MiMo 预置音色。"""
+def _assign_voices(result: dict, use_clone_library: bool = True):
+    """分配预置音色 + 验证 LLM 返回的音色 ID。"""
+    clone_ids = {v["id"] for v in compact_voice_catalog()}
+    preset_ids = {v["id"] for v in preset_voice_catalog()}
+    all_valid = clone_ids | preset_ids
+
     for char in result.get("characters", []):
         gender = char.get("gender", "男")
         age = char.get("age", "青年")
-        # 标准化 gender 以防 LLM 返回非预期值
         rules = VOICE_ASSIGN_RULES.get(gender, VOICE_ASSIGN_RULES["男"])
-        voice = rules.get(age, rules.get("默认", "苏打"))
-        char["assigned_voice"] = voice
+        char["assigned_voice"] = rules.get(age, rules.get("默认", "苏打"))
 
-    # 旁白音色：根据旁白风格描述智能匹配
+        llm_vid = char.get("builtin_voice_id", "")
+        if use_clone_library:
+            char["builtin_voice_id"] = llm_vid if (llm_vid in clone_ids or llm_vid in preset_ids) else recommend_voice_id(char)
+        else:
+            char["builtin_voice_id"] = llm_vid if llm_vid in preset_ids else ""
+
+    llm_narrator_vid = result.get("narrator_builtin_voice_id", "")
+    if use_clone_library:
+        result["narrator_builtin_voice_id"] = llm_narrator_vid if (llm_narrator_vid in clone_ids or llm_narrator_vid in preset_ids) else recommend_voice_id({}, narrator=True)
+    else:
+        result["narrator_builtin_voice_id"] = llm_narrator_vid if llm_narrator_vid in preset_ids else ""
+
     ns = result.get("narrator_style", "")
     if ns:
         guessed = _guess_narrator_voice(ns)
-        if guessed:
-            result["narrator_voice"] = guessed
-        else:
-            result["narrator_voice"] = NARRATOR_VOICE
+        result["narrator_voice"] = guessed or NARRATOR_VOICE
     else:
         result["narrator_voice"] = NARRATOR_VOICE
 

@@ -183,7 +183,7 @@ def clean_text(text: str) -> str:
     """Clean input text before feeding to LLM.
 
     Removes decorative dividers, normalizes quotes,
-    collapses excessive newlines, and strips stray symbols.
+    collapses newlines, and strips stray symbols.
     """
     import re
 
@@ -193,9 +193,9 @@ def clean_text(text: str) -> str:
     text = re.sub(r'[\=\-\*]{3,}', ' ', text)
     # unicode box-drawing and misc symbols
     text = re.sub(r'[■-⟿☀-➿]', ' ', text)
-    # collapse 3+ newlines to 2
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    # strip leading spaces on each line
+    # all newlines -> space (TTS doesn't need visual line breaks)
+    text = re.sub(r'\n+', ' ', text)
+    # strip leading/trailing spaces
     text = re.sub(r'^[ \t　]+', '', text, flags=re.MULTILINE)
     # curly quotes -> straight quotes
     text = text.replace('“', '"').replace('”', '"')
@@ -204,8 +204,8 @@ def clean_text(text: str) -> str:
     text = text.replace('（', '(').replace('）', ')')
     text = text.replace('【', '[').replace('】', ']')
     # isolated = signs (web-novel divider residue)
-    text = re.sub(r'(?<!\w)=(?!\w)', '', text)
-    return text.strip()
+    text = re.sub(r'(?<![=])={3,}(?![=])', ' ', text)
+    return text
 
 def load_text(source: str) -> str:
     """加载文本：支持单文件、目录（每章一个文件）。
