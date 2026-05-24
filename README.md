@@ -4,15 +4,15 @@
 
 ## 界面预览
 
-![首页](static/首页.png)
+![连接配置](static/连接配置.png)
 
-![导入书籍章节](static/导入书籍章节-章节列表.png)
+![导入书籍](static/导入书籍.png)
+
+![章节选择](static/章节选择.png)
 
 ![角色卡](static/角色卡.png)
 
-![划分编辑](static/划分编辑.png)
-
-![音色定制](static/音色定制.png)
+![章节划分](static/章节划分.png)
 
 ![合成](static/合成.png)
 

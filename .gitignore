@@ -22,7 +22,6 @@ static/*.ogg
 static/**/*.wav
 static/**/*.mp3
 static/**/*.ogg
-static/**/*.png
 !static/demo.*
 
 # Tests & local scratch
