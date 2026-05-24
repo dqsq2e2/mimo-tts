@@ -68,7 +68,7 @@ VOICE_ASSIGN_RULES: dict[str, dict[str, str]] = {
 }
 
 # 旁白音色
-NARRATOR_VOICE = "茉莉"
+NARRATOR_VOICE = "白桦"
 
 # 预置音色列表
 PRESET_VOICES: dict[str, dict[str, str]] = {

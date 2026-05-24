@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_file, send_from_directory
 
-from tts_audiobook.config import MIMO_API_KEY_ENV, MIMO_TOKEN_PLAN_KEY_ENV
+from tts_audiobook.config import MIMO_API_KEY_ENV, MIMO_TOKEN_PLAN_KEY_ENV, NARRATOR_VOICE, PRESET_VOICES
 from tts_audiobook.llm_config import (
     clear_llm_config,
     default_base_url_for_mode,
@@ -200,9 +200,12 @@ def project_save_characters(project_id):
         return jsonify({"error": "not found"}), 404
     data = request.get_json(silent=True) or {}
     project["characters"] = data.get("characters", [])
-    project["narrator_voice"] = data.get("narrator_voice", project.get("narrator_voice", "茉莉"))
+    narrator_builtin_voice_id = data.get("narrator_builtin_voice_id", project.get("narrator_builtin_voice_id", ""))
+    project["narrator_voice"] = data.get("narrator_voice", project.get("narrator_voice", NARRATOR_VOICE))
+    if narrator_builtin_voice_id in PRESET_VOICES:
+        project["narrator_voice"] = narrator_builtin_voice_id
     project["narrator_style"] = data.get("narrator_style", project.get("narrator_style", ""))
-    project["narrator_builtin_voice_id"] = data.get("narrator_builtin_voice_id", project.get("narrator_builtin_voice_id", ""))
+    project["narrator_builtin_voice_id"] = narrator_builtin_voice_id
     save_project(project_id, project)
     return jsonify(load_project(project_id))
 

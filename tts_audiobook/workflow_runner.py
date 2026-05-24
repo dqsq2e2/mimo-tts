@@ -15,7 +15,7 @@ from openai import OpenAI
 
 from .audio_merger import merge_wavs, wav_duration_sec
 from .character_detector import detect_characters
-from .config import CHARACTER_DETECT_MAX_CHARS, MIMO_BASE_URL, MIMO_TOKEN_PLAN_URL, NARRATOR_VOICE
+from .config import CHARACTER_DETECT_MAX_CHARS, MIMO_BASE_URL, MIMO_TOKEN_PLAN_URL, NARRATOR_VOICE, PRESET_VOICES
 from .cost_tracker import CostTracker
 from .llm_config import default_base_url_for_mode, effective_llm_config
 from .mimo_client import MiMoTTSClient
@@ -349,7 +349,11 @@ def _synthesize(task_id: str, project_id: str, project: dict[str, Any], mimo_key
             if text and text[-1] not in "。！？.!?…~～\"\"」」''":
                 text += "。"
             speaker = segment.get("speaker", "旁白")
-            voice_sample = _voice_sample_for_segment(project, characters, segment) if use_clone_library else None
+            if speaker == "未知":
+                speaker = "旁白"
+            preset_voice = _preset_voice_for_segment(project, characters, segment)
+            fallback_voice = preset_voice or speaker_voice.get(speaker, narrator_voice)
+            voice_sample = None if preset_voice else (_voice_sample_for_segment(project, characters, segment) if use_clone_library else None)
             if voice_sample:
                 style_hint = speaker_style.get(speaker, narrator_style)
                 try:
@@ -363,9 +367,9 @@ def _synthesize(task_id: str, project_id: str, project: dict[str, Any], mimo_key
                     usage = {"prompt_tokens": completion.usage.prompt_tokens, "completion_tokens": completion.usage.completion_tokens, "total_tokens": completion.usage.total_tokens}
                 except Exception as exc:
                     _log(task, "info", f"克隆音色失败，回退预设音色: {exc}")
-                    wav, usage = client.synthesize(text, voice=speaker_voice.get(speaker, narrator_voice), style=speaker_style.get(speaker, narrator_style))
+                    wav, usage = client.synthesize(text, voice=fallback_voice, style=speaker_style.get(speaker, narrator_style))
             else:
-                wav, usage = client.synthesize(text, voice=speaker_voice.get(speaker, narrator_voice), style=speaker_style.get(speaker, narrator_style))
+                wav, usage = client.synthesize(text, voice=fallback_voice, style=speaker_style.get(speaker, narrator_style))
 
             elapsed = time.time() - started
             tracker.record(global_index, len(text), usage, wav_duration_sec(wav), elapsed)
@@ -399,10 +403,24 @@ def _voice_sample_for_segment(project: dict[str, Any], characters: list[dict[str
     if not voice_id and speaker == "旁白":
         voice_id = recommend_voice_id({}, narrator=True)
     if voice_id:
+        if voice_id in PRESET_VOICES:
+            return None
         path = find_voice_path(voice_id)
         if path:
             return base64.b64encode(path.read_bytes()).decode()
     return None
+
+
+def _preset_voice_for_segment(project: dict[str, Any], characters: list[dict[str, Any]], segment: dict[str, Any]) -> str | None:
+    speaker = segment.get("speaker", "旁白")
+    if speaker == "未知":
+        speaker = "旁白"
+    voice_id = project.get("narrator_builtin_voice_id") if speaker == "旁白" else None
+    for character in characters:
+        if character.get("name") == speaker:
+            voice_id = character.get("builtin_voice_id") or voice_id
+            break
+    return voice_id if voice_id in PRESET_VOICES else None
 
 
 def _extract_json(raw: str) -> Any:
