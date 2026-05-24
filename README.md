@@ -60,6 +60,70 @@ python app.py
 
 ### 3. Docker 部署
 
+#### 方式 A：从本地源码构建（使用仓库自带 docker-compose.yml）
+
+```bash
+git clone https://github.com/dqsq2e2/mimo-tts.git
+cd mimo-tts
+
+# 可选：提前创建持久化目录
+mkdir -p .runtime projects static
+
+# 使用当前源码构建镜像并启动
+docker compose up -d --build
+# http://localhost:5000
+```
+
+仓库自带的 `docker-compose.yml` 会从本地 `Dockerfile` 构建镜像，适合二次开发或本地修改后运行。
+
+#### 方式 B：直接拉取镜像运行（命令行）
+
+```bash
+docker pull dqsq2e2/mimo-tts:latest
+
+docker run -d \
+  --name mimo-tts \
+  -p 5000:5000 \
+  -e MIMO_TOKEN_PLAN_KEY=你的TokenPlanKey \
+  -e LLM_PROVIDER=deepseek \
+  -e LLM_API_KEY=你的LLMKey \
+  -e LLM_BASE_URL=https://api.deepseek.com/v1 \
+  -e LLM_MODEL=deepseek-v4-flash \
+  -e LLM_THINKING=enabled \
+  -v "$(pwd)/.runtime:/app/.runtime" \
+  -v "$(pwd)/projects:/app/projects" \
+  -v "$(pwd)/static:/app/static" \
+  dqsq2e2/mimo-tts:latest
+```
+
+#### 方式 C：直接拉取镜像运行（docker-compose.yml）
+
+```yaml
+services:
+  mimo-tts:
+    image: dqsq2e2/mimo-tts:latest
+    container_name: mimo-tts
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5000
+      - MIMO_API_KEY=${MIMO_API_KEY:-}
+      - MIMO_TOKEN_PLAN_KEY=${MIMO_TOKEN_PLAN_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-deepseek}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-v4-flash}
+      - LLM_THINKING=${LLM_THINKING:-enabled}
+      - LLM_REASONING_EFFORT=${LLM_REASONING_EFFORT:-}
+      - FLASK_DEBUG=${FLASK_DEBUG:-0}
+    volumes:
+      - ./.runtime:/app/.runtime
+      - ./projects:/app/projects
+      - ./static:/app/static
+    restart: unless-stopped
+```
+
 ```bash
 docker compose up -d
 # http://localhost:5000
@@ -74,6 +138,7 @@ docker compose up -d
 | `LLM_BASE_URL` | 可选，LLM Base URL |
 | `LLM_MODEL` | 可选，默认可在前端连接配置中保存 |
 | `LLM_THINKING` | 可选，`enabled` / `disabled` |
+| `LLM_REASONING_EFFORT` | 可选，思考强度 |
 | `FLASK_DEBUG` | 调试模式（默认 0） |
 
 | 挂载卷 | 说明 |
@@ -81,6 +146,9 @@ docker compose up -d
 | `./.runtime:/app/.runtime` | 后端保存的 Key 与 LLM 配置 |
 | `./projects:/app/projects` | 项目数据持久化 |
 | `./static:/app/static` | 合成音频输出 |
+
+如果不想通过环境变量写 Key，也可以只挂载 `.runtime`，启动后在右上角「连接配置」里保存 MiMo Key 和 LLM 配置；这些内容只会写到后端挂载目录，不写浏览器存储。
+
 ### 4. 配置
 
 右上角「连接配置」→ 填入 MiMo Key 和 LLM 配置。
